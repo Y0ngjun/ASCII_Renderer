@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Renderer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff0050;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .upload-section {
+            background: #0f0f23;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 2px dashed #333;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+
+        .upload-section:hover {
+            border-color: #00ff00;
+        }
+
+        .upload-section.dragover {
+            border-color: #00ff00;
+            background: #1a1a3e;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px #00ff0040;
+        }
+
+        .upload-text {
+            margin-top: 15px;
+            color: #666;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #0f0f23;
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+
+        .control-group label {
+            margin-bottom: 8px;
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        .control-group input[type="range"] {
+            width: 150px;
+            accent-color: #00ff00;
+        }
+
+        .control-group select {
+            padding: 8px 12px;
+            background: #1a1a2e;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .control-group select:focus {
+            outline: none;
+            box-shadow: 0 0 5px #00ff0050;
+        }
+
+        .control-group span {
+            margin-top: 5px;
+            color: #888;
+        }
+
+        .result-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .result-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: #0f0f23;
+            border-radius: 15px;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .panel-title {
+            color: #00ff00;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .image-preview {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+            background: #000;
+            border-radius: 10px;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 8px;
+        }
+
+        .ascii-output {
+            background: #000;
+            border-radius: 10px;
+            padding: 10px;
+            overflow: auto;
+            max-height: 600px;
+        }
+
+        #asciiResult {
+            font-family: 'Courier New', monospace;
+            font-size: 6px;
+            line-height: 1;
+            color: #00ff00;
+            white-space: pre;
+            letter-spacing: 0px;
+        }
+
+        .placeholder {
+            color: #444;
+            text-align: center;
+            padding: 50px;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .download-btn {
+            background: #333;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.2s;
+        }
+
+        .download-btn:hover {
+            background: #00ff00;
+            color: #000;
+        }
+
+        .download-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .download-btn + .download-btn {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ASCII Renderer</h1>
+        <p class="subtitle">이미지를 ASCII 아트로 변환합니다</p>
+
+        <div class="upload-section" id="dropZone">
+            <input type="file" id="fileInput" accept="image/*">
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                이미지 선택
+            </button>
+            <p class="upload-text">또는 이미지를 드래그 앤 드롭하세요</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="widthSlider">해상도</label>
+                <input type="range" id="widthSlider" min="50" max="300" value="150">
+                <span id="widthValue">150</span>
+            </div>
+            <div class="control-group">
+                <label for="aspectSlider">비율</label>
+                <input type="range" id="aspectSlider" min="30" max="80" value="55">
+                <span id="aspectValue">0.55</span>
+            </div>
+            <div class="control-group">
+                <label for="quantizeSlider">선명도</label>
+                <input type="range" id="quantizeSlider" min="2" max="16" value="8">
+                <span id="quantizeValue">8</span>
+            </div>
+            <div class="control-group">
+                <label for="fontSlider">폰트</label>
+                <input type="range" id="fontSlider" min="4" max="12" value="6">
+                <span id="fontValue">6px</span>
+            </div>
+            <div class="control-group">
+                <label for="themeSelect">테마</label>
+                <select id="themeSelect">
+                    <option value="green">콘솔</option>
+                    <option value="mono">흑백</option>
+                    <option value="mono-invert">흑백(반전)</option>
+                    <option value="color">컬러</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="result-container">
+            <div class="panel">
+                <h3 class="panel-title">원본 이미지</h3>
+                <div class="image-preview">
+                    <div class="placeholder" id="imagePlaceholder">이미지를 업로드하세요</div>
+                    <img id="previewImage" style="display: none;">
+                </div>
+            </div>
+            <div class="panel">
+                <h3 class="panel-title">ASCII 결과</h3>
+                <div class="ascii-output">
+                    <pre id="asciiResult"><span class="placeholder">변환 결과가 여기에 표시됩니다</span></pre>
+                </div>
+                <button class="download-btn" id="downloadBtn" disabled onclick="downloadASCII()">
+                    HTML로 다운로드
+                </button>
+                <button class="download-btn" id="downloadPngBtn" disabled onclick="downloadPNG()">
+                    PNG로 다운로드
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        var ASCII_CHARS = ' .:-=+*#%@';
+        
+        var fileInput = document.getElementById('fileInput');
+        var dropZone = document.getElementById('dropZone');
+        var previewImage = document.getElementById('previewImage');
+        var imagePlaceholder = document.getElementById('imagePlaceholder');
+        var asciiResult = document.getElementById('asciiResult');
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        var widthSlider = document.getElementById('widthSlider');
+        var widthValue = document.getElementById('widthValue');
+        var aspectSlider = document.getElementById('aspectSlider');
+        var aspectValue = document.getElementById('aspectValue');
+        var quantizeSlider = document.getElementById('quantizeSlider');
+        var quantizeValue = document.getElementById('quantizeValue');
+        var fontSlider = document.getElementById('fontSlider');
+        var fontValue = document.getElementById('fontValue');
+        var themeSelect = document.getElementById('themeSelect');
+        var downloadBtn = document.getElementById('downloadBtn');
+        var downloadPngBtn = document.getElementById('downloadPngBtn');
+
+        var currentImage = null;
+        var currentPixels = null;
+        var currentWidth = 0;
+        var currentHeight = 0;
+
+        fileInput.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (file) processImage(file);
+        });
+
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', function() {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            var file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                processImage(file);
+            }
+        });
+
+        widthSlider.addEventListener('input', function() {
+            widthValue.textContent = widthSlider.value;
+            if (currentImage) renderASCII();
+        });
+
+        aspectSlider.addEventListener('input', function() {
+            aspectValue.textContent = (aspectSlider.value / 100).toFixed(2);
+            if (currentImage) renderASCII();
+        });
+
+        quantizeSlider.addEventListener('input', function() {
+            quantizeValue.textContent = quantizeSlider.value;
+            if (currentImage) renderASCII();
+        });
+
+        fontSlider.addEventListener('input', function() {
+            fontValue.textContent = fontSlider.value + 'px';
+            asciiResult.style.fontSize = fontSlider.value + 'px';
+        });
+
+        themeSelect.addEventListener('change', function() {
+            if (currentImage) renderASCII();
+            updateThemeStyle();
+        });
+
+        function updateThemeStyle() {
+            var theme = themeSelect.value;
+            var asciiOutput = document.querySelector('.ascii-output');
+            if (theme === 'mono-invert') {
+                asciiOutput.style.background = '#fff';
+            } else {
+                asciiOutput.style.background = '#000';
+            }
+        }
+
+        function processImage(file) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                currentImage = new Image();
+                currentImage.onload = function() {
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = 'block';
+                    imagePlaceholder.style.display = 'none';
+                    renderASCII();
+                    downloadBtn.disabled = false;
+                    downloadPngBtn.disabled = false;
+                };
+                currentImage.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderASCII() {
+            if (!currentImage) return;
+
+            var targetWidth = parseInt(widthSlider.value);
+            var aspectRatio = currentImage.height / currentImage.width;
+            var aspectCorrection = parseInt(aspectSlider.value) / 100;
+            var targetHeight = Math.floor(targetWidth * aspectRatio * aspectCorrection);
+            var quantizeLevels = parseInt(quantizeSlider.value);
+            var theme = themeSelect.value;
+
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            ctx.drawImage(currentImage, 0, 0, targetWidth, targetHeight);
+
+            var imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+            var pixels = imageData.data;
+            
+            currentPixels = pixels;
+            currentWidth = targetWidth;
+            currentHeight = targetHeight;
+
+            var html = '';
+            for (var y = 0; y < targetHeight; y++) {
+                for (var x = 0; x < targetWidth; x++) {
+                    var i = (y * targetWidth + x) * 4;
+                    var r = pixels[i];
+                    var g = pixels[i + 1];
+                    var b = pixels[i + 2];
+                    var gray = r * 0.299 + g * 0.587 + b * 0.114;
+                    
+                    var quantized = Math.floor(gray / 256 * quantizeLevels) / (quantizeLevels - 1);
+                    quantized = Math.min(quantized, 1);
+                    
+                    var charIndex = Math.floor(quantized * (ASCII_CHARS.length - 1));
+                    var char = ASCII_CHARS[charIndex];
+                    
+                    if (char === ' ') char = '&nbsp;';
+                    
+                    var color;
+                    if (theme === 'green') {
+                        color = '#00ff00';
+                    } else if (theme === 'mono') {
+                        var grayHex = Math.round(gray).toString(16).padStart(2, '0');
+                        color = '#' + grayHex + grayHex + grayHex;
+                    } else if (theme === 'mono-invert') {
+                        var invertGray = 255 - Math.round(gray);
+                        var grayHex = invertGray.toString(16).padStart(2, '0');
+                        color = '#' + grayHex + grayHex + grayHex;
+                    } else if (theme === 'color') {
+                        color = 'rgb(' + r + ',' + g + ',' + b + ')';
+                    }
+                    
+                    html += '<span style="color:' + color + '">' + char + '</span>';
+                }
+                html += '\n';
+            }
+
+            asciiResult.innerHTML = html;
+        }
+
+        function downloadASCII() {
+            var asciiHtml = asciiResult.innerHTML;
+            var fontSize = fontSlider.value;
+            var theme = themeSelect.value;
+            var bgColor = theme === 'mono-invert' ? '#fff' : '#000';
+            
+            var htmlContent = [
+                '<!DOCTYPE html>',
+                '<html lang="ko">',
+                '<head>',
+                '    <meta charset="UTF-8">',
+                '    <title>ASCII Art</title>',
+                '    <style>',
+                '        body { background: ' + bgColor + '; margin: 0; padding: 20px; }',
+                '        pre { font-family: Courier New, monospace; font-size: ' + fontSize + 'px; line-height: 1; white-space: pre; }',
+                '    </style>',
+                '</head>',
+                '<body>',
+                '    <pre>' + asciiHtml + '</pre>',
+                '</body>',
+                '</html>'
+            ].join('\n');
+
+            var blob = new Blob([htmlContent], { type: 'text/html' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'ascii_art.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadPNG() {
+            if (!currentPixels || currentWidth === 0) return;
+            
+            var fontSize = parseInt(fontSlider.value);
+            var theme = themeSelect.value;
+            var quantizeLevels = parseInt(quantizeSlider.value);
+            
+            var lineHeight = fontSize;
+            var charWidth = fontSize * 0.6;
+            
+            var pngCanvas = document.createElement('canvas');
+            var pngCtx = pngCanvas.getContext('2d');
+            
+            pngCanvas.width = currentWidth * charWidth + 20;
+            pngCanvas.height = currentHeight * lineHeight + 20;
+            
+            pngCtx.fillStyle = theme === 'mono-invert' ? '#ffffff' : '#000000';
+            pngCtx.fillRect(0, 0, pngCanvas.width, pngCanvas.height);
+            
+            pngCtx.font = fontSize + 'px Courier New';
+            pngCtx.textBaseline = 'top';
+            
+            for (var y = 0; y < currentHeight; y++) {
+                for (var x = 0; x < currentWidth; x++) {
+                    var i = (y * currentWidth + x) * 4;
+                    var r = currentPixels[i];
+                    var g = currentPixels[i + 1];
+                    var b = currentPixels[i + 2];
+                    var gray = r * 0.299 + g * 0.587 + b * 0.114;
+                    
+                    var quantized = Math.floor(gray / 256 * quantizeLevels) / (quantizeLevels - 1);
+                    quantized = Math.min(quantized, 1);
+                    var charIndex = Math.floor(quantized * (ASCII_CHARS.length - 1));
+                    var char = ASCII_CHARS[charIndex];
+                    
+                    var color;
+                    if (theme === 'green') {
+                        color = '#00ff00';
+                    } else if (theme === 'mono') {
+                        var grayHex = Math.round(gray).toString(16).padStart(2, '0');
+                        color = '#' + grayHex + grayHex + grayHex;
+                    } else if (theme === 'mono-invert') {
+                        var invertGray = 255 - Math.round(gray);
+                        var grayHex = invertGray.toString(16).padStart(2, '0');
+                        color = '#' + grayHex + grayHex + grayHex;
+                    } else if (theme === 'color') {
+                        color = 'rgb(' + r + ',' + g + ',' + b + ')';
+                    }
+                    
+                    pngCtx.fillStyle = color;
+                    pngCtx.fillText(char, 10 + x * charWidth, 10 + y * lineHeight);
+                }
+            }
+            
+            var link = document.createElement('a');
+            link.download = 'ascii_art.png';
+            link.href = pngCanvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>
